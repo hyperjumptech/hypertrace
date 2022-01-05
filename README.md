@@ -42,7 +42,28 @@ GET http://server/getHandshakePin?uid=jlhk3wl3lglwjbiopcisa
 
 ### 3.1 Request
 
+| Request | Info    |
+|:--------|:--------|
+| Method | GET    |
+| Path   | `/getUploadToken?uid=<uid>&data=<data>` |
+
+
+**Query Strings**
+
+| Key     | Description    |
+|:--------|:--------|
+| uid     | The user's identification code. This code should be usable by implementor to identify the actual user. The uid it self should be meaningless to outside the organization, thus it should not store phone number, email or informations alike. **uid must be 21 character**|
+| data | This is actually a secret data that should be supplied by the tracing authority, used for uploading the trace result into the authorities's database |
+
+
 ### 3.2 Response
+
+```json
+{
+	"status": "SUCCESS",
+	"token": "UAMnfvgwsXW96kZu"
+}
+```
 
 ## 4. uploadData
 
