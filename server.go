@@ -17,6 +17,7 @@ var (
 )
 
 func initRoutes() {
+	hmux.UseMiddleware(StaticMiddleware)
 	hmux.AddRoute("/getHandshakePin", mux.MethodGet, getHandshakePin)
 	hmux.AddRoute("/getTempIDs", mux.MethodGet, getTempIDs)
 	hmux.AddRoute("/getUploadToken", mux.MethodGet, getUploadToken)

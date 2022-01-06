@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/hyperjumptech/hypertrace/static"
 	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
@@ -311,4 +312,49 @@ func generateTempId(key []byte, uid string, i uint32) (*TempID, error) {
 		StartTime:  start,
 		ExpiryTime: expiry,
 	}, err
+}
+
+func StaticMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		if !strings.HasPrefix(req.URL.Path, "/docs") {
+			next.ServeHTTP(res, req)
+		} else {
+			if req.Method != http.MethodGet {
+				res.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+			if req.URL.Path == "/docs" || req.URL.Path == "/docs/" {
+				res.Header().Set("Location", "/docs/index.html")
+				res.WriteHeader(http.StatusMovedPermanently)
+				return
+			} else if strings.HasSuffix(req.URL.Path, "/") {
+				res.Header().Set("Location", req.URL.Path+"index.html")
+				res.WriteHeader(http.StatusMovedPermanently)
+				return
+			}
+			filePath := strings.ReplaceAll(req.URL.Path, "/docs/", "api/")
+			dirFilePath := "[DIR]" + filePath
+			paths := static.GetPathTree("api")
+			for _, path := range paths {
+				if path == dirFilePath {
+					res.Header().Set("Location", req.URL.Path+"/index.html")
+					res.WriteHeader(http.StatusMovedPermanently)
+					return
+				}
+				if path == filePath {
+					fdata, err := static.GetFile(filePath)
+					if err != nil {
+						res.WriteHeader(http.StatusInternalServerError)
+						res.Write([]byte(err.Error()))
+						return
+					}
+					res.Header().Set("Content-Type", fdata.ContentType)
+					res.WriteHeader(http.StatusOK)
+					res.Write(fdata.Bytes)
+					return
+				}
+			}
+			res.WriteHeader(http.StatusNotFound)
+		}
+	})
 }

@@ -7,6 +7,6 @@ import (
 )
 
 func main() {
-	logrus.Infof("HYPERTRACE - STARTED : %v" , time.Now())
+	logrus.Infof("HYPERTRACE - STARTED : %v", time.Now())
 	hypertrace.StartServer()
 }

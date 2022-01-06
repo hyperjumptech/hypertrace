@@ -1,0 +1,370 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "HyperTrace POC Prove of Concept",
+    "version": "1.0.0",
+    "title": "HyperTrace Server POC",
+    "termsOfService": ""
+  },
+  "basePath": "/",
+  "tags": [
+    {
+      "name": "OpenTrace API",
+      "description": "The endpoint that uses BlueTrace spec for Handshake and TempIDs"
+    },
+    {
+      "name": "Admin API",
+      "description": "The endpoint that uses BlueTrace spec for Handshake and TempIDs"
+    }
+  ],
+  "schemes": [
+    "http"
+  ],
+  "paths": {
+    "/getHandshakePin": {
+      "get": {
+        "tags": [
+          "OpenTrace API"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "uid",
+            "description": "ceredential"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type" : "string"
+                },
+                "pin": {
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Incorrect input"
+          },
+          "404": {
+            "description": "uid not found"
+          }
+        }
+      }
+    },
+    "/getTempIDs": {
+      "get": {
+        "tags": [
+          "OpenTrace API"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "uid",
+            "description": "ceredential"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type" : "string"
+                },
+                "refreshTime": {
+                  "type": "number"
+                },
+                "tempIDs": {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "object",
+                    "properties": {
+                      "tempID": {
+                        "type" : "string"
+                      },
+                      "startTime": {
+                        "type" : "number"
+                      },
+                      "expiryTime": {
+                        "type" : "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Incorrect input"
+          },
+          "404": {
+            "description": "uid not found"
+          }
+        }
+      }
+    },
+    "/uploadData": {
+      "post": {
+        "tags": [
+          "OpenTrace API"
+        ],
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "required": true,
+            "name": "uid",
+            "description": "ceredential",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "uid": {
+                  "type": "string"
+                },
+                "uploadToken": {
+                  "type": "string"
+                },
+                "traces": {
+                  "type": "array",
+                  "items": {
+                    "properties": {
+                      "timestamp": {
+                        "type": "number"
+                      },
+                      "msg": {
+                        "type": "string"
+                      },
+                      "modelC": {
+                        "type": "string"
+                      },
+                      "modelP": {
+                        "type": "string"
+                      },
+                      "rssi": {
+                        "type": "number"
+                      },
+                      "txPower": {
+                        "type": "number"
+                      },
+                      "org": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Incorrect input"
+          },
+          "404": {
+            "description": "uid not found"
+          }
+        }
+      }
+    },
+    "/getTracing": {
+      "get": {
+        "tags": [
+          "Admin API"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "uid",
+            "description": "ceredential"
+          },
+          {
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "uploadToken",
+            "description": "ceredential"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "trace": {
+                  "type": "array",
+                  "items": {
+                    "properties": {
+                      "Timestamp": {
+                        "type": "number"
+                      },
+                      "ContactUID": {
+                        "type": "string"
+                      },
+                      "ModelC": {
+                        "type": "string"
+                      },
+                      "ModelP": {
+                        "type": "string"
+                      },
+                      "RSSI": {
+                        "type": "number"
+                      },
+                      "TxPower": {
+                        "type": "number"
+                      },
+                      "Org": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Incorrect input"
+          },
+          "404": {
+            "description": "uid or token not found"
+          }
+        }
+      }
+    },
+    "/purgeTracing": {
+      "get": {
+        "tags": [
+          "Admin API"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "required": true,
+            "type": "number",
+            "name": "ageHour",
+            "description": "ceredential"
+          },
+          {
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "uploadToken",
+            "description": "ceredential"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Incorrect input"
+          },
+          "404": {
+            "description": "token not found not found"
+          }
+
+        }
+      }
+    },
+    "/getUploadToken": {
+      "get": {
+        "tags": [
+          "Admin API"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "uid",
+            "description": "ceredential"
+          },
+          {
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "data",
+            "description": "ceredential"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type" : "string"
+                },
+                "token": {
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Incorrect input"
+          },
+          "404": {
+            "description": "uid not found or data not match"
+          }
+        }
+      }
+    }
+  }
+}
