@@ -14,7 +14,7 @@
     },
     {
       "name": "Admin API",
-      "description": "The endpoint that uses BlueTrace spec for Handshake and TempIDs"
+      "description": "The endpoint that used by admin to upload, query and purge trace data"
     }
   ],
   "schemes": [
@@ -35,7 +35,7 @@
             "required": true,
             "type": "string",
             "name": "uid",
-            "description": "ceredential"
+            "description": "User Identification Number, a 21 digit string that can be used to identify the actual user. It should not contains personal information such as name, phone number, email, etc"
           }
         ],
         "responses": {
@@ -48,7 +48,8 @@
                   "type" : "string"
                 },
                 "pin": {
-                  "type" : "string"
+                  "type" : "string",
+                  "description" : "The pin to be used to gain access the the blue tooth device running the tracing app"
                 }
               }
             }
@@ -76,7 +77,7 @@
             "required": true,
             "type": "string",
             "name": "uid",
-            "description": "ceredential"
+            "description": "User Identification Number, a 21 digit string that can be used to identify the actual user. It should not contains personal information such as name, phone number, email, etc"
           }
         ],
         "responses": {
@@ -89,7 +90,8 @@
                   "type" : "string"
                 },
                 "refreshTime": {
-                  "type": "number"
+                  "type": "number",
+                  "description" : "Time stamp on which the blue tooth device to obtain another set of tempIDs"
                 },
                 "tempIDs": {
                   "type" : "array",
@@ -97,13 +99,16 @@
                     "type" : "object",
                     "properties": {
                       "tempID": {
-                        "type" : "string"
+                        "type" : "string",
+                        "description" : "List of temporary ID to be used by blue tooth defice to be exchanged during contact"
                       },
                       "startTime": {
-                        "type" : "number"
+                        "type" : "number",
+                        "description" : "UNIX time stamp on which this temporary ID is valid and used for exchange with other bluetooth device"
                       },
                       "expiryTime": {
-                        "type" : "number"
+                        "type" : "number",
+                        "description" : "UNIX timestamp on which this temporary ID become expired and should not be used to exchange data with other bluetooth device"
                       }
                     }
                   }
@@ -123,10 +128,7 @@
     "/uploadData": {
       "post": {
         "tags": [
-          "OpenTrace API"
-        ],
-        "consumes": [
-          "application/json"
+          "Admin API"
         ],
         "produces": [
           "application/json"
@@ -135,41 +137,51 @@
           {
             "in": "body",
             "required": true,
-            "name": "uid",
+            "name": "traceData",
             "description": "ceredential",
             "schema": {
               "type": "object",
               "properties": {
                 "uid": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "User Identification Number, a 21 digit string that can be used to identify the actual user. It should not contains personal information such as name, phone number, email, etc"
                 },
                 "uploadToken": {
-                  "type": "string"
+                  "type": "string",
+                  "description" : "Securit token used to authorize this upload. The token can be obtained using getUploadToken endpoint using officials secret"
                 },
                 "traces": {
+                  "description" : "The trace data to be uploaded",
                   "type": "array",
                   "items": {
                     "properties": {
                       "timestamp": {
-                        "type": "number"
+                        "type": "number",
+                        "description" : "Contact time stamp"
                       },
                       "msg": {
-                        "type": "string"
+                        "type": "string",
+                        "description" : "Received TempID"
                       },
                       "modelC": {
-                        "type": "string"
+                        "type": "string",
+                        "description" : "Device model name of the Central side"
                       },
                       "modelP": {
-                        "type": "string"
+                        "type": "string",
+                        "description" : "Device model name of the Peripheral side"
                       },
                       "rssi": {
-                        "type": "number"
+                        "type": "number",
+                        "description" : "Bluetooth signal strength"
                       },
                       "txPower": {
-                        "type": "number"
+                        "type": "number",
+                        "description" : "Bluetooth transfer power"
                       },
                       "org": {
-                        "type": "string"
+                        "type": "string",
+                        "description" : "Organization of the counterpart device"
                       }
                     }
                   }
@@ -213,7 +225,7 @@
             "required": true,
             "type": "string",
             "name": "uid",
-            "description": "ceredential"
+            "description": "User Identification Number, a 21 digit string that can be used to identify the actual user. It should not contains personal information such as name, phone number, email, etc"
           },
           {
             "in": "query",
@@ -332,14 +344,14 @@
             "required": true,
             "type": "string",
             "name": "uid",
-            "description": "ceredential"
+            "description": "User Identification Number, a 21 digit string that can be used to identify the actual user. It should not contains personal information such as name, phone number, email, etc"
           },
           {
             "in": "query",
             "required": true,
             "type": "string",
             "name": "data",
-            "description": "ceredential"
+            "description": "The admin credential"
           }
         ],
         "responses": {
