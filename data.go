@@ -29,13 +29,13 @@ type TraceUser struct {
 }
 
 type TraceData struct {
-	ContactUID string
-	Timestamp  int64
-	ModelC     string
-	ModelP     string
-	RSSI       int
-	TxPower    int
-	Org        string
+	ContactUID string `json:"contactUid"`
+	Timestamp  int64  `json:"timestamp"`
+	ModelC     string `json:"modelC"`
+	ModelP     string `json:"modelP"`
+	RSSI       int    `json:"rssi"`
+	TxPower    int    `json:"txPower"`
+	Org        string `json:"org"`
 }
 
 type DataUpload struct {

@@ -38,23 +38,23 @@ func decode(encoded []byte) (cyperText, iv []byte, err error) {
 
 	cypherLen, err := buff.ReadByte()
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w : decode error", err)
+		return nil, nil, fmt.Errorf("%w : decode error during reading 1 byte from buffer to find out cypher len", err)
 	}
 	cyperData = make([]byte, cypherLen)
 	_, err = buff.Read(cyperData)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w : decode error", err)
+		return nil, nil, fmt.Errorf("%w : decode error during reading %d bytes of cypher data ", err, cypherLen)
 	}
 
 	ivLen, err := buff.ReadByte()
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w : decode error", err)
+		return nil, nil, fmt.Errorf("%w : decode error during reading 1 byte from buffer to find out IV len", err)
 	}
 
 	ivData = make([]byte, ivLen)
 	_, err = buff.Read(ivData)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w : decode error", err)
+		return nil, nil, fmt.Errorf("%w : decode error during reading %d bytes of iv data", err, ivLen)
 	}
 
 	return cyperData, ivData, nil
@@ -118,7 +118,7 @@ func encryptAndEncode(data, key []byte) (crypted string, err error) {
 func decodeAndDecrypt(crypted string, key []byte) (data []byte, err error) {
 	cypher, iv, err := decode(B64Decode(crypted))
 	if err != nil {
-		return nil, fmt.Errorf("%w : decode error", err)
+		return nil, fmt.Errorf("%w : decode error when decoding base64 cryptext", err)
 	}
 	data, err = decrypt(cypher, iv, key)
 	if err != nil {

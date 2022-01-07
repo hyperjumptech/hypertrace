@@ -30,10 +30,12 @@ const (
 var (
 	ErrInvalidTempIDLength = fmt.Errorf("invalid temporary id length")
 	Tracing                ITracing
+	Forwarder IForwarder
 )
 
 func init() {
 	Tracing = NewInMemoryTracing()
+	Forwarder = &StdOutForwarder{}
 }
 
 func getHandshakePin(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +139,7 @@ func getUploadToken(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Supplied uid or data not found"))
 		return
 	}
+
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\", \"token\":\"%s\"}", token)))
@@ -146,6 +149,7 @@ func getUploadToken(w http.ResponseWriter, r *http.Request) {
 func uploadData(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
+		logrus.Error(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 		return
@@ -154,6 +158,7 @@ func uploadData(w http.ResponseWriter, r *http.Request) {
 	upload := &DataUpload{}
 	err = json.Unmarshal(bodyBytes, upload)
 	if err != nil {
+		logrus.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
@@ -165,6 +170,7 @@ func uploadData(w http.ResponseWriter, r *http.Request) {
 		TempID := tr.Message
 		uid, start, exp, err := GetTempIDData([]byte(ENCRYPTIONKEY), TempID)
 		if err != nil {
+			logrus.Error(err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(err.Error()))
 			return
@@ -188,15 +194,27 @@ func uploadData(w http.ResponseWriter, r *http.Request) {
 
 	err = Tracing.SaveTraceData(upload.UID, upload.UploadToken, traces)
 	if err != nil && (errors.Is(err, ErrUIDNotFound) || errors.Is(err, ErrTokenNotFound)) {
+		logrus.Error(err.Error())
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("uid or upload token not found"))
+		w.Write([]byte(fmt.Sprintf("uid or upload token not found. got %s", err.Error())))
 		return
 	}
+
 	if err != nil {
+		logrus.Error(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
 	}
+
+	err = Forwarder.ForwardTraceData(upload.UID, traces)
+	if err != nil {
+		logrus.Errorf("forwarder error. got %s" ,err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("{\"status\":\"SUCCESS\"}"))
 }
@@ -261,7 +279,7 @@ func (tid *TempID) IsValid(key []byte, forTime time.Time) bool {
 func GetTempIDData(key []byte, tempid string) (UID string, start, expiry int32, err error) {
 	data, err := decodeAndDecrypt(tempid, key)
 	if err != nil {
-		return "", 0, 0, err
+		return "", 0, 0, fmt.Errorf("%w : error processing tempID %s for decodingAndDecrypt process", err, tempid)
 	}
 	buff := bytes.NewBuffer(data)
 
@@ -271,15 +289,15 @@ func GetTempIDData(key []byte, tempid string) (UID string, start, expiry int32, 
 
 	_, err = io.ReadFull(buff, uidBytes)
 	if err != nil {
-		return "", 0, 0, err
+		return "", 0, 0, fmt.Errorf("%w : error processing tempID %s for extracting UID bytes", err, tempid)
 	}
 	_, err = io.ReadFull(buff, startBytes)
 	if err != nil {
-		return "", 0, 0, err
+		return "", 0, 0, fmt.Errorf("%w : error processing tempID %s for extracting Start bytes", err, tempid)
 	}
 	_, err = io.ReadFull(buff, expiryBytes)
 	if err != nil {
-		return "", 0, 0, err
+		return "", 0, 0, fmt.Errorf("%w : error processing tempID %s for extracting Expire bytes", err, tempid)
 	}
 
 	start = int32(binary.BigEndian.Uint32(startBytes))

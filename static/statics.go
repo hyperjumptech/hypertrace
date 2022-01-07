@@ -4,7 +4,6 @@ import (
 	"embed"
 	"fmt"
 	"github.com/hyperjumptech/hypertrace/static/mime"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"strings"
@@ -32,7 +31,6 @@ func IsDir(path string) bool {
 }
 
 func GetPathTree(path string) []string {
-	logrus.Infof("Into %s", path)
 	var entries []os.DirEntry
 	var err error
 	if strings.HasPrefix(path, "./") {
@@ -44,7 +42,6 @@ func GetPathTree(path string) []string {
 	if err != nil {
 		return ret
 	}
-	logrus.Infof("Path %s %d etries", path, len(entries))
 	for _, e := range entries {
 		if e.IsDir() {
 			ret = append(ret, "[DIR]"+path+"/"+e.Name())
