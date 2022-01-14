@@ -17,23 +17,27 @@ import (
 )
 
 const (
-	ValidPeriod = 5
-	UID_SIZE    = 21
-	TIME_SIZE   = 4
-	// 21 bytes for UID, 4 bytes each for creation and expiry timestamp
-	TEMPID_SIZE   = UID_SIZE + TIME_SIZE*2
-	IV_SIZE       = 16
-	AUTHTAG_SIZE  = 16
-	ENCRYPTIONKEY = "tH1Sis4nEncryPt10nKeydOn0tsHar3!"
+	UID_SIZE     = 21
+	TIME_SIZE    = 4
+	TEMPID_SIZE  = UID_SIZE + TIME_SIZE*2
+	IV_SIZE      = 16
+	AUTHTAG_SIZE = 16
 )
 
 var (
 	ErrInvalidTempIDLength = fmt.Errorf("invalid temporary id length")
 	Tracing                ITracing
-	Forwarder IForwarder
+	Forwarder              IForwarder
+	ENCRYPTIONKEY          string
+	ValidPeriod            uint32
+	TempIDAmount           int
 )
 
 func init() {
+	ENCRYPTIONKEY = ConfigGet("tempid.crypt.key")
+	ValidPeriod = uint32(ConfigGetInt("tempid.valid.period.hour"))
+	TempIDAmount = ConfigGetInt("tempid.count")
+
 	Tracing = NewInMemoryTracing()
 	Forwarder = &StdOutForwarder{}
 }
@@ -209,7 +213,7 @@ func uploadData(w http.ResponseWriter, r *http.Request) {
 
 	err = Forwarder.ForwardTraceData(upload.UID, traces)
 	if err != nil {
-		logrus.Errorf("forwarder error. got %s" ,err.Error())
+		logrus.Errorf("forwarder error. got %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 		return
@@ -251,7 +255,7 @@ func GenerateTempIDs(uid string) (tempIds []*TempID, err error) {
 	if len(uid) < UID_SIZE {
 		return nil, ErrInvalidTempIDLength
 	}
-	tempIds = make([]*TempID, 100)
+	tempIds = make([]*TempID, TempIDAmount)
 	for i := 0; i < len(tempIds); i++ {
 		tempId, err := generateTempId([]byte(ENCRYPTIONKEY), uid, uint32(i))
 		if err != nil {

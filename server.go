@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	mux "github.com/hyperjumptech/hyper-mux"
-	"github.com/sirupsen/logrus"
+	serverLog "github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"os/signal"
@@ -34,8 +34,10 @@ func StartServer() {
 	// StartUpTime records first ime up
 	startUpTime := time.Now()
 
+	addr := fmt.Sprintf("%s:%d", ConfigGet("server.host"), ConfigGetInt("server.port"))
+
 	theServer := &http.Server{
-		Addr:              "0.0.0.0:8080",
+		Addr:              addr,
 		Handler:           hmux,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       10 * time.Second,
@@ -44,9 +46,10 @@ func StartServer() {
 	}
 
 	go func() {
+		serverLog.Infof("Hypertrace Server start listening on : %s", addr)
 		err := theServer.ListenAndServe()
 		if err != nil {
-			logrus.Error(err.Error())
+			serverLog.Error(err.Error())
 		}
 	}()
 
@@ -69,10 +72,10 @@ func StartServer() {
 	// Optionally, you could run srv.Shutdown in a goroutine and block on
 	// <-ctx.Done() if your application should wait for other services
 	// to finalize based on context cancellation.
-	logrus.Info("shutting down........ bye")
+	serverLog.Info("shutting down........ bye")
 
 	t := time.Now()
 	upTime := t.Sub(startUpTime)
-	fmt.Println("server was up for : ", upTime.String(), " *******")
+	serverLog.Println("server was up for : ", upTime.String(), " *******")
 	os.Exit(0)
 }
