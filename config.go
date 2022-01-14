@@ -18,6 +18,8 @@ func init() {
 	viper.AutomaticEnv()
 	defCfg = make(map[string]string)
 
+	defCfg["adminpassword"] = "admin password is a secret"
+
 	defCfg["server.host"] = "0.0.0.0"
 	defCfg["server.port"] = "8080"
 

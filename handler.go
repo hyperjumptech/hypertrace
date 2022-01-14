@@ -42,6 +42,40 @@ func init() {
 	Forwarder = &StdOutForwarder{}
 }
 
+func registerUid(w http.ResponseWriter, r *http.Request) {
+	uid := r.URL.Query().Get("uid")
+	if len(uid) != UID_SIZE {
+		logrus.Errorf("registerUid: uid %s < %d characters", uid, UID_SIZE)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("{\"status\":\"FAIL\""))
+		return
+	}
+	pin := r.URL.Query().Get("pin")
+	if len(pin) == 0 {
+		logrus.Errorf("registerUid: empty pin")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("{\"status\":\"FAIL\""))
+		return
+	}
+	secret := r.URL.Query().Get("secret")
+	_, err := Tracing.GetOfficerID(r.Context(),secret)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("{\"status\":\"FAIL\""))
+		return
+	}
+
+	err = Tracing.RegisterNewUser(r.Context(), uid, pin)
+	if err != nil {
+		logrus.Errorf("registerUid: got %s", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("{\"status\":\"SUCCESS\"}"))
+}
+
 func getHandshakePin(w http.ResponseWriter, r *http.Request) {
 	uid := r.URL.Query().Get("uid")
 	if len(uid) != UID_SIZE {
@@ -50,12 +84,81 @@ func getHandshakePin(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("{\"status\":\"FAIL\""))
 		return
 	}
-
-	_ = Tracing.RegisterNewTraceUser(uid)
 	logrus.Infof("getHandshakePin: uid %s", uid)
+
+	pin, err := Tracing.GetHandshakePIN(r.Context(),uid)
+	if err != nil {
+		if errors.Is(err, ErrUIDNotFound) {
+			w.Header().Add("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("uid specified not found"))
+			return
+		}
+		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\", \"pin\":\"%s\"}", generatePIN(uid))))
+	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\", \"pin\":\"%s\"}", pin)))
+}
+
+func registerOfficer(w http.ResponseWriter, r *http.Request) {
+	adminpassword := r.URL.Query().Get("pass")
+	oid := r.URL.Query().Get("oid")
+	secret := r.URL.Query().Get("secret")
+
+	if adminpassword != ConfigGet("adminpassword") {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("unauthorized"))
+		return
+	}
+
+	if len(oid) == 0 || len(secret) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("missing oid or secret"))
+		return
+	}
+
+	err := Tracing.RegisterNewOfficer(r.Context(),oid, secret)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\"}")))
+}
+
+func deleteOfficer(w http.ResponseWriter, r *http.Request) {
+	adminpassword := r.URL.Query().Get("pass")
+	oid := r.URL.Query().Get("oid")
+
+	if adminpassword != ConfigGet("adminpassword") {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("unauthorized"))
+		return
+	}
+
+	if len(oid) == 0  {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("missing oid or secret"))
+		return
+	}
+
+	err := Tracing.DeleteOfficer(r.Context(),oid)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\"}")))
 }
 
 type TempIDResponse struct {
@@ -65,11 +168,11 @@ type TempIDResponse struct {
 }
 
 func purgeTracing(w http.ResponseWriter, r *http.Request) {
-	uploadToken := r.URL.Query().Get("uploadToken")
+	secret := r.URL.Query().Get("secret")
 	sAgeHour := r.URL.Query().Get("ageHour")
-	if len(uploadToken) == 0 || len(sAgeHour) == 0 {
+	if len(secret) == 0 || len(sAgeHour) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("missing uploadToken or ageHour parameter"))
+		w.Write([]byte("missing secret or ageHour parameter"))
 		return
 	}
 	ageHour, err := strconv.ParseInt(sAgeHour, 10, 64)
@@ -82,7 +185,14 @@ func purgeTracing(w http.ResponseWriter, r *http.Request) {
 	age := time.Duration(ageHour) * time.Hour
 	oldest := time.Now().Add(-age)
 
-	err = Tracing.PurgeOldTraceData(oldest.Unix(), uploadToken)
+	_, err = Tracing.GetOfficerID(r.Context(),secret)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("invalid secret format"))
+		return
+	}
+
+	err = Tracing.PurgeOldTraceData(r.Context(), oldest.Unix())
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("invalid uploadToken format"))
@@ -124,29 +234,37 @@ func getTempIDs(w http.ResponseWriter, r *http.Request) {
 
 func getUploadToken(w http.ResponseWriter, r *http.Request) {
 	uid := r.URL.Query().Get("uid")
-	data := r.URL.Query().Get("data")
+	secret := r.URL.Query().Get("secret")
 
 	if len(uid) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Missing 'uid' param"))
 		return
 	}
-	if len(data) == 0 {
+	if len(secret) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Missing 'data' param"))
 		return
 	}
 
-	token, err := Tracing.GetUploadToken(uid, data)
+	oid, err := Tracing.GetOfficerID(r.Context(), secret)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("Supplied uid or data not found"))
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("secret not valid"))
+		return
+	}
+
+	ut := NewUploadToken(uid,oid,1)
+	tok, err := ut.ToToken([]byte(ENCRYPTIONKEY))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
 		return
 	}
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\", \"token\":\"%s\"}", token)))
+	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\", \"token\":\"%s\"}",tok )))
 	return
 }
 
@@ -168,6 +286,21 @@ func uploadData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// validate the token
+	ut, err := NewUploadTokenFromString(upload.UploadToken, []byte(ENCRYPTIONKEY))
+	if err != nil {
+		logrus.Error(err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	if !ut.IsValid() {
+		logrus.Error(err.Error())
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("upload token expired"))
+		return
+	}
+
 	traces := make([]*TraceData, 0)
 
 	for _, tr := range upload.Traces {
@@ -184,7 +317,7 @@ func uploadData(w http.ResponseWriter, r *http.Request) {
 		// todo Make sure the tr.Timestamp is within start and exp
 
 		td := &TraceData{
-			ContactUID: uid,
+			CUID: uid,
 			Timestamp:  tr.Timestamp,
 			ModelC:     tr.ModelC,
 			ModelP:     tr.ModelP,
@@ -196,7 +329,7 @@ func uploadData(w http.ResponseWriter, r *http.Request) {
 		traces = append(traces, td)
 	}
 
-	err = Tracing.SaveTraceData(upload.UID, upload.UploadToken, traces)
+	err = Tracing.SaveTraceData(r.Context(),upload.UID, ut.OID, traces)
 	if err != nil && (errors.Is(err, ErrUIDNotFound) || errors.Is(err, ErrTokenNotFound)) {
 		logrus.Error(err.Error())
 		w.WriteHeader(http.StatusNotFound)
@@ -230,8 +363,14 @@ type TracingResponse struct {
 
 func getTracing(w http.ResponseWriter, r *http.Request) {
 	uid := r.URL.Query().Get("uid")
-	uploadToken := r.URL.Query().Get("uploadToken")
-	tdata, err := Tracing.GetTraceData(uid, uploadToken)
+	secret := r.URL.Query().Get("secret")
+	_, err := Tracing.GetOfficerID(r.Context(), secret)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("invalid secret"))
+		return
+	}
+	tdata, err := Tracing.GetTraceData(r.Context(),uid)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
@@ -245,10 +384,6 @@ func getTracing(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write(respBytes)
 	}
-}
-
-func generatePIN(uid string) string {
-	return strings.ToUpper(uid)[0:6]
 }
 
 func GenerateTempIDs(uid string) (tempIds []*TempID, err error) {

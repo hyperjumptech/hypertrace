@@ -2,10 +2,12 @@ package hypertrace
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"time"
 )
 
 const (
@@ -16,23 +18,24 @@ var (
 	ErrRegisterUIDError = fmt.Errorf("uid registration error")
 	ErrUIDNotFound      = fmt.Errorf("uid not found")
 	ErrTokenNotFound    = fmt.Errorf("token not found")
+	ErrSecretNotValid = fmt.Errorf("secret not valid")
+
 	inMemoryLog         = logrus.WithField("DB", "InMemory")
 	mongoLog            = logrus.WithField("DB", "MongoDB")
+
 )
 
 type ITracing interface {
 	RegisterNewUser(ctx context.Context, UID, PIN string) (err error)
 	GetHandshakePIN(ctx context.Context, UID string) (PIN string, err error)
-	UserPIN(ctx context.Context, UID, PIN, NewPIN string) (err error)
 
-	GetUploadToken(ctx context.Context, UID, secret string) (token string, err error)
-	SaveTraceData(ctx context.Context, UID, uploadToken string, data []*TraceData) (err error)
-	PurgeOldTraceData(ctx context.Context, oldestTimeStamp int64, secret string) (err error)
-	GetTraceData(ctx context.Context, UID, secret string) (traces []*TraceData, err error)
+	SaveTraceData(ctx context.Context, UID, OID string, data []*TraceData) (err error)
+	PurgeOldTraceData(ctx context.Context, oldestTimeStamp int64) (err error)
+	GetTraceData(ctx context.Context, UID string) (traces []*TraceData, err error)
 
-	RegisterNewOfficer(ctx context.Context, officerID, secret string) (err error)
-	GetOfficerID(ctx context.Context, secret string) (officerID string, err error)
-	DeleteOfficer(ctx context.Context, officerID string) (err error)
+	RegisterNewOfficer(ctx context.Context, OID, secret string) (err error)
+	GetOfficerID(ctx context.Context, secret string) (OID string, err error)
+	DeleteOfficer(ctx context.Context, OID string) (err error)
 }
 
 type User struct {
@@ -57,6 +60,48 @@ type TraceData struct {
 	Org       string `json:"org"`
 }
 
+func NewUploadToken(uid, oid string, validHour int) *UploadToken {
+	return &UploadToken{
+		OID:        oid,
+		UID:        uid,
+		ValidFrom:  time.Now().Unix(),
+		ValidUntil: time.Now().Add(time.Duration(validHour) * time.Hour).Unix(),
+	}
+}
+
+func NewUploadTokenFromString(token string, key []byte) (*UploadToken, error) {
+	dataJson, err := decodeAndDecrypt(token, key)
+	if err != nil {
+		return nil, err
+	}
+	ut := &UploadToken{}
+	err = json.Unmarshal(dataJson, ut)
+	return ut, err
+}
+
+type UploadToken struct {
+	OID string `json:"oid"`
+	UID string `json:"uid"`
+	ValidFrom int64 `json:"nbf"`
+	ValidUntil int64 `json:"exp"`
+}
+
+func (ut *UploadToken) IsValid() bool {
+	n := time.Now().Unix()
+	return n > ut.ValidFrom && n < ut.ValidUntil
+}
+
+func (ut *UploadToken) ToToken(key []byte) (token string, err error)  {
+	utBytes, err  := json.Marshal(ut)
+	if err != nil {
+		return "", err
+	}
+	return encryptAndEncode(utBytes, key)
+}
+
+
+
+
 type DataUpload struct {
 	UID         string               `json:"uid"`
 	UploadToken string               `json:"uploadToken"`
@@ -75,99 +120,98 @@ type UploadTraceRecord struct {
 
 func NewInMemoryTracing() ITracing {
 	tracing := &InMemoryTracing{
-		UIDs:           make(map[string]*TraceUser),
-		SecretTokenMap: make(map[string]string),
+		Users:           make(map[string]*User),
+		Officers: make(map[string]*Officer),
+		TraceDatas: make([]*TraceData,0),
 	}
-
-	tracing.SecretTokenMap["secret1"] = "UAMnfvgwsXW96kZu"
-	tracing.SecretTokenMap["secret2"] = "L6Z1dudr9908ywhk"
-	tracing.SecretTokenMap["secret3"] = "RKX8aJJGJE113Uto"
-	tracing.SecretTokenMap["secret4"] = "TDy0gnzJbDx8mNSN"
-	tracing.SecretTokenMap["secret5"] = "qxCSSnT1qt1XPU6D"
+	_ = tracing.RegisterNewOfficer(context.Background(), "officer1", "secret1")
+	_ = tracing.RegisterNewOfficer(context.Background(), "officer2", "secret2")
+	_ = tracing.RegisterNewOfficer(context.Background(), "officer3", "secret3")
+	_ = tracing.RegisterNewOfficer(context.Background(), "officer4", "secret4")
+	_ = tracing.RegisterNewOfficer(context.Background(), "officer5", "secret5")
 	return tracing
 }
 
 type InMemoryTracing struct {
-	UIDs           map[string]*TraceUser
-	SecretTokenMap map[string]string
+	Users map[string]*User
+	Officers map[string]*Officer
+	TraceDatas []*TraceData
 }
 
-func (trace *InMemoryTracing) RegisterNewTraceUser(ctx context.Context, UID string) (err error) {
-	inMemoryLog.Infof("RegisterNewTraceUser : UID = %s", UID)
-	if _, ok := trace.UIDs[UID]; !ok {
-		trace.UIDs[UID] = &TraceUser{
-			UID:    UID,
-			Traces: make([]*TraceData, 0),
-		}
+func (trace *InMemoryTracing) RegisterNewUser(ctx context.Context, UID, PIN string) (err error) {
+	inMemoryLog.Tracef("RegisterNewUser UID:%s", UID)
+	trace.Users[UID] = &User{
+		UID: UID,
+		PIN: PIN,
 	}
 	return nil
 }
-func (trace *InMemoryTracing) GetAdminToken(ctx context.Context, uid, secret string) (token string, err error) {
-	inMemoryLog.Infof("GetUploadToken : UID = %s", uid)
-	if _, ok := trace.UIDs[uid]; !ok {
-		return "", fmt.Errorf("%w : %s", ErrUIDNotFound, uid)
+func (trace *InMemoryTracing) GetHandshakePIN(ctx context.Context, UID string) (PIN string, err error){
+	inMemoryLog.Tracef("GetHandshakePIN UID:%s", UID)
+	if tu, ok := trace.Users[UID]; ok {
+		return tu.PIN, nil
 	}
+	return "", ErrUIDNotFound
+}
 
-	if td, ok := trace.SecretTokenMap[secret]; ok {
-		return td, nil
+
+func (trace *InMemoryTracing) SaveTraceData(ctx context.Context, UID, OID string, data []*TraceData) (err error){
+	inMemoryLog.Tracef("SaveTraceData UID:%s OID:%s", UID, OID)
+	for _,tdata := range data {
+		tdata.UID = UID
+		tdata.OID = OID
 	}
-	return "", ErrTokenNotFound
+	trace.TraceDatas = append(trace.TraceDatas, data... )
+	return nil
 }
-func (trace *InMemoryTracing) SaveTraceData(ctx context.Context, UID, uploadToken string, data []*TraceData) (err error) {
-	inMemoryLog.Infof("SaveTraceData : UID = %s", UID)
-	found := false
-	for _, v := range trace.SecretTokenMap {
-		if v == uploadToken {
-			found = true
+func (trace *InMemoryTracing) PurgeOldTraceData(ctx context.Context, oldestTimeStamp int64) (err error){
+	inMemoryLog.Tracef("PurgeOldTraceData")
+	newTraceData := make([]*TraceData, 0)
+	for _, td := range trace.TraceDatas {
+		if td.Timestamp >= oldestTimeStamp {
+			newTraceData = append(newTraceData, td)
 		}
 	}
-	if !found {
-		return ErrTokenNotFound
-	}
-	if td, ok := trace.UIDs[UID]; ok {
-		td.Traces = append(td.Traces, data...)
-		return nil
-	}
-	return fmt.Errorf("%w : %s", ErrUIDNotFound, UID)
+	trace.TraceDatas = newTraceData
+	return nil
 }
-func (trace *InMemoryTracing) PurgeOldTraceData(ctx context.Context, oldestTimeStamp int64, uploadToken string) (err error) {
-	inMemoryLog.Infof("PurgeOldTraceData : Purge older than unix %d", oldestTimeStamp)
-	found := false
-	for _, v := range trace.SecretTokenMap {
-		if v == uploadToken {
-			found = true
+func (trace *InMemoryTracing) GetTraceData(ctx context.Context, UID string) (traces []*TraceData, err error){
+	inMemoryLog.Tracef("GetTraceData UID:%s", UID)
+	newTraceData := make([]*TraceData, 0)
+	for _, td := range trace.TraceDatas {
+		if td.UID == UID {
+			newTraceData = append(newTraceData, td)
 		}
 	}
-	if !found {
-		return ErrTokenNotFound
-	}
-	for _, tUser := range trace.UIDs {
-		newTraceData := make([]*TraceData, 0)
-		for _, td := range tUser.Traces {
-			if td.Timestamp >= oldestTimeStamp {
-				newTraceData = append(newTraceData, td)
-			}
-		}
-		tUser.Traces = newTraceData
+	return newTraceData, nil
+}
+
+func (trace *InMemoryTracing) RegisterNewOfficer(ctx context.Context, OID, secret string) (err error){
+	inMemoryLog.Tracef("RegisterNewOfficer OID:%s", OID)
+	trace.Officers[OID] = &Officer{
+		OID:    OID,
+		Secret: secret,
 	}
 	return nil
 }
-func (trace *InMemoryTracing) GetTraceData(ctx context.Context, UID, uploadToken string) (traces []*TraceData, err error) {
-	inMemoryLog.Infof("GetTraceData : UID = %s", UID)
-	found := false
-	for _, v := range trace.SecretTokenMap {
-		if v == uploadToken {
-			found = true
+func (trace *InMemoryTracing) GetOfficerID(ctx context.Context, secret string) (OID string, err error){
+	inMemoryLog.Tracef("GetOfficerID secret:%s", secret)
+	for oid, off := range trace.Officers {
+		if off.Secret == secret {
+			return oid, nil
 		}
 	}
-	if !found {
-		return nil, ErrTokenNotFound
-	}
-	if td, ok := trace.UIDs[UID]; ok {
-		return td.Traces, nil
-	}
-	return nil, fmt.Errorf("%w : %s", ErrUIDNotFound, UID)
+	return "", ErrSecretNotValid
 }
+func (trace *InMemoryTracing) DeleteOfficer(ctx context.Context, OID string) (err error){
+	inMemoryLog.Tracef("DeleteOfficer OID:%s", OID)
+	delete(trace.Officers, OID)
+	return nil
+}
+
+/**
+MongoDB Implementations
+ */
 
 type MongoDBTracing struct {
 	database string
@@ -208,23 +252,40 @@ func NewMongoDBTracing(database, host string, port int, user, password string) I
 func (trace *MongoDBTracing) getMongoURL() string {
 	return fmt.Sprintf("mongodb://%s:%s@%s:%d", trace.user, trace.password, trace.server, trace.port)
 }
-func (trace *MongoDBTracing) RegisterNewTraceUser(ctx context.Context, UID string) (err error) {
-	mongoLog.Infof("RegisterNewTraceUser : UID = %s", UID)
-	return fmt.Errorf("not yet implemented")
+
+
+func (trace *MongoDBTracing) RegisterNewUser(ctx context.Context, UID, PIN string) (err error) {
+	mongoLog.Tracef("RegisterNewUser UID:%s", UID)
+	return nil
 }
-func (trace *MongoDBTracing) GetAdminToken(ctx context.Context, UID, secret string) (token string, err error) {
-	mongoLog.Infof("GetUploadToken : UID = %s", UID)
-	return "", fmt.Errorf("not yet implemented")
+func (trace *MongoDBTracing) GetHandshakePIN(ctx context.Context, UID string) (PIN string, err error){
+	mongoLog.Tracef("GetHandshakePIN UID:%s", UID)
+	return "", ErrUIDNotFound
 }
-func (trace *MongoDBTracing) SaveTraceData(ctx context.Context, UID, uploadToken string, data []*TraceData) (err error) {
-	mongoLog.Infof("SaveTraceData : UID = %s", UID)
-	return fmt.Errorf("not yet implemented")
+
+
+func (trace *MongoDBTracing) SaveTraceData(ctx context.Context, UID, OID string, data []*TraceData) (err error){
+	mongoLog.Tracef("SaveTraceData UID:%s OID:%s", UID, OID)
+	return nil
 }
-func (trace *MongoDBTracing) PurgeOldTraceData(ctx context.Context, oldestTimeStamp int64, uploadToken string) (err error) {
-	mongoLog.Infof("PurgeOldTraceData : Purge older than unix %d", oldestTimeStamp)
-	return fmt.Errorf("not yet implemented")
+func (trace *MongoDBTracing) PurgeOldTraceData(ctx context.Context, oldestTimeStamp int64) (err error){
+	mongoLog.Tracef("PurgeOldTraceData")
+	return nil
 }
-func (trace *MongoDBTracing) GetTraceData(ctx context.Context, UID, uploadToken string) (traces []*TraceData, err error) {
-	mongoLog.Infof("GetTraceData : UID = %s", UID)
-	return nil, fmt.Errorf("not yet implemented")
+func (trace *MongoDBTracing) GetTraceData(ctx context.Context, UID string) (traces []*TraceData, err error){
+	mongoLog.Tracef("GetTraceData UID:%s", UID)
+	return nil, nil
+}
+
+func (trace *MongoDBTracing) RegisterNewOfficer(ctx context.Context, OID, secret string) (err error){
+	mongoLog.Tracef("RegisterNewOfficer OID:%s", OID)
+	return nil
+}
+func (trace *MongoDBTracing) GetOfficerID(ctx context.Context, secret string) (OID string, err error){
+	mongoLog.Tracef("GetOfficerID secret:%s", secret)
+	return "", ErrSecretNotValid
+}
+func (trace *MongoDBTracing) DeleteOfficer(ctx context.Context, OID string) (err error){
+	mongoLog.Tracef("DeleteOfficer OID:%s", OID)
+	return nil
 }

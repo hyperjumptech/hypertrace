@@ -18,7 +18,13 @@ var (
 
 func initRoutes() {
 	hmux.UseMiddleware(StaticMiddleware)
+
+	hmux.AddRoute("/registerUid", mux.MethodGet, registerUid)
 	hmux.AddRoute("/getHandshakePin", mux.MethodGet, getHandshakePin)
+
+	hmux.AddRoute("/registerOid", mux.MethodGet, registerOfficer)
+	hmux.AddRoute("/deleteOid", mux.MethodGet, deleteOfficer)
+
 	hmux.AddRoute("/getTempIDs", mux.MethodGet, getTempIDs)
 	hmux.AddRoute("/getUploadToken", mux.MethodGet, getUploadToken)
 	hmux.AddRoute("/uploadData", mux.MethodPost, uploadData)

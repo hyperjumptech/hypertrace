@@ -9,22 +9,26 @@
   "basePath": "/",
   "tags": [
     {
-      "name": "OpenTrace API",
+      "name": "Admin API",
+      "description": "Officer Registration and Authentication"
+    },
+    {
+      "name": "User API",
       "description": "The endpoint that uses BlueTrace spec for Handshake and TempIDs"
     },
     {
-      "name": "Admin API",
+      "name": "Officer API",
       "description": "The endpoint that used by admin to upload, query and purge trace data"
     }
   ],
   "schemes": [
-    "http"
+    "http","https"
   ],
   "paths": {
     "/getHandshakePin": {
       "get": {
         "tags": [
-          "OpenTrace API"
+          "User API"
         ],
         "produces": [
           "application/json"
@@ -66,7 +70,7 @@
     "/getTempIDs": {
       "get": {
         "tags": [
-          "OpenTrace API"
+          "User API"
         ],
         "produces": [
           "application/json"
@@ -125,10 +129,60 @@
         }
       }
     },
+    "/registerUid":{
+      "get": {
+        "tags": [
+          "Officer API"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "secret",
+            "description": "Officer credential"
+          },{
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "uid",
+            "description": "User Identification Number, a 21 digit string that can be used to identify the actual user. It should not contains personal information such as name, phone number, email, etc"
+          },{
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "pin",
+            "description": "Personal Identification Number, a secret pin used by user for authentication"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Incorrect input"
+          },
+          "404": {
+            "description": "uid not found"
+          }
+        }
+      }
+    },
     "/uploadData": {
       "post": {
         "tags": [
-          "Admin API"
+          "Officer API"
         ],
         "produces": [
           "application/json"
@@ -214,7 +268,7 @@
     "/getTracing": {
       "get": {
         "tags": [
-          "Admin API"
+          "Officer API"
         ],
         "produces": [
           "application/json"
@@ -231,8 +285,8 @@
             "in": "query",
             "required": true,
             "type": "string",
-            "name": "uploadToken",
-            "description": "ceredential"
+            "name": "secret",
+            "description": "officer ceredential"
           }
         ],
         "responses": {
@@ -287,7 +341,7 @@
     "/purgeTracing": {
       "get": {
         "tags": [
-          "Admin API"
+          "Officer API"
         ],
         "produces": [
           "application/json"
@@ -304,7 +358,7 @@
             "in": "query",
             "required": true,
             "type": "string",
-            "name": "uploadToken",
+            "name": "secret",
             "description": "ceredential"
           }
         ],
@@ -333,7 +387,7 @@
     "/getUploadToken": {
       "get": {
         "tags": [
-          "Admin API"
+          "Officer API"
         ],
         "produces": [
           "application/json"
@@ -350,8 +404,8 @@
             "in": "query",
             "required": true,
             "type": "string",
-            "name": "data",
-            "description": "The admin credential"
+            "name": "secret",
+            "description": "The officer's credential"
           }
         ],
         "responses": {
@@ -364,6 +418,103 @@
                   "type" : "string"
                 },
                 "token": {
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Incorrect input"
+          },
+          "404": {
+            "description": "uid not found or data not match"
+          }
+        }
+      }
+    },
+    "/registerOid": {
+      "get": {
+        "tags": [
+          "Admin API"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "pass",
+            "description": "Administrator password, etc"
+          },
+          {
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "oid",
+            "description": "New Officer Identification Number"
+          },
+          {
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "secret",
+            "description": "The Officer new credential"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Incorrect input"
+          },
+          "404": {
+            "description": "uid not found or data not match"
+          }
+        }
+      }
+    },
+    "/deleteOid": {
+      "get": {
+        "tags": [
+          "Admin API"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "pass",
+            "description": "Administrator password"
+          },
+          {
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "name": "oid",
+            "description": "The officer's OID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
                   "type" : "string"
                 }
               }
