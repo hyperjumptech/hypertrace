@@ -17,6 +17,8 @@ var (
 )
 
 func initRoutes() {
+	InitTracing()
+
 	hmux.UseMiddleware(StaticMiddleware)
 
 	hmux.AddRoute("/registerUid", mux.MethodGet, registerUid)

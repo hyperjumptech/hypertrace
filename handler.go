@@ -38,8 +38,19 @@ func init() {
 	ValidPeriod = uint32(ConfigGetInt("tempid.valid.period.hour"))
 	TempIDAmount = ConfigGetInt("tempid.count")
 
-	Tracing = NewInMemoryTracing()
 	Forwarder = &StdOutForwarder{}
+}
+
+func InitTracing() {
+	if Tracing == nil {
+		if ConfigGet("database") == "mongodb" {
+			logrus.Warnf("Database using MongoDB")
+			Tracing = NewMongoDBTracing(ConfigGet("mongo.database"), ConfigGet("mongo.host"), ConfigGetInt("mongo.port"), ConfigGet("mongo.user"), ConfigGet("mongo.password"))
+		} else {
+			logrus.Warnf("Database using InMemory. Next server restart will clear all data.")
+			Tracing = NewInMemoryTracing()
+		}
+	}
 }
 
 func registerUid(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +69,7 @@ func registerUid(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	secret := r.URL.Query().Get("secret")
-	_, err := Tracing.GetOfficerID(r.Context(),secret)
+	_, err := Tracing.GetOfficerID(r.Context(), secret)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte("{\"status\":\"FAIL\""))
@@ -86,7 +97,7 @@ func getHandshakePin(w http.ResponseWriter, r *http.Request) {
 	}
 	logrus.Infof("getHandshakePin: uid %s", uid)
 
-	pin, err := Tracing.GetHandshakePIN(r.Context(),uid)
+	pin, err := Tracing.GetHandshakePIN(r.Context(), uid)
 	if err != nil {
 		if errors.Is(err, ErrUIDNotFound) {
 			w.Header().Add("Content-Type", "application/json")
@@ -121,7 +132,7 @@ func registerOfficer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := Tracing.RegisterNewOfficer(r.Context(),oid, secret)
+	err := Tracing.RegisterNewOfficer(r.Context(), oid, secret)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
@@ -143,13 +154,13 @@ func deleteOfficer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(oid) == 0  {
+	if len(oid) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("missing oid or secret"))
 		return
 	}
 
-	err := Tracing.DeleteOfficer(r.Context(),oid)
+	err := Tracing.DeleteOfficer(r.Context(), oid)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
@@ -185,7 +196,7 @@ func purgeTracing(w http.ResponseWriter, r *http.Request) {
 	age := time.Duration(ageHour) * time.Hour
 	oldest := time.Now().Add(-age)
 
-	_, err = Tracing.GetOfficerID(r.Context(),secret)
+	_, err = Tracing.GetOfficerID(r.Context(), secret)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte("invalid secret format"))
@@ -254,7 +265,7 @@ func getUploadToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ut := NewUploadToken(uid,oid,1)
+	ut := NewUploadToken(uid, oid, 1)
 	tok, err := ut.ToToken([]byte(ENCRYPTIONKEY))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -264,7 +275,7 @@ func getUploadToken(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\", \"token\":\"%s\"}",tok )))
+	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\", \"token\":\"%s\"}", tok)))
 	return
 }
 
@@ -317,19 +328,19 @@ func uploadData(w http.ResponseWriter, r *http.Request) {
 		// todo Make sure the tr.Timestamp is within start and exp
 
 		td := &TraceData{
-			CUID: uid,
-			Timestamp:  tr.Timestamp,
-			ModelC:     tr.ModelC,
-			ModelP:     tr.ModelP,
-			RSSI:       tr.RSSI,
-			TxPower:    tr.TxPower,
-			Org:        tr.Org,
+			CUID:      uid,
+			Timestamp: tr.Timestamp,
+			ModelC:    tr.ModelC,
+			ModelP:    tr.ModelP,
+			RSSI:      tr.RSSI,
+			TxPower:   tr.TxPower,
+			Org:       tr.Org,
 		}
 
 		traces = append(traces, td)
 	}
 
-	err = Tracing.SaveTraceData(r.Context(),upload.UID, ut.OID, traces)
+	err = Tracing.SaveTraceData(r.Context(), upload.UID, ut.OID, traces)
 	if err != nil && (errors.Is(err, ErrUIDNotFound) || errors.Is(err, ErrTokenNotFound)) {
 		logrus.Error(err.Error())
 		w.WriteHeader(http.StatusNotFound)
@@ -370,7 +381,7 @@ func getTracing(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("invalid secret"))
 		return
 	}
-	tdata, err := Tracing.GetTraceData(r.Context(),uid)
+	tdata, err := Tracing.GetTraceData(r.Context(), uid)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))

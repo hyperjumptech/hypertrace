@@ -18,10 +18,14 @@ func init() {
 	viper.AutomaticEnv()
 	defCfg = make(map[string]string)
 
+	defCfg["loglevel"] = "warn" // trace,debug,info,warn,error,fatal
+
 	defCfg["adminpassword"] = "admin password is a secret"
 
 	defCfg["server.host"] = "0.0.0.0"
 	defCfg["server.port"] = "8080"
+
+	defCfg["database"] = "inmemory" // set to "mongodb" to use mongo
 
 	defCfg["mongo.database"] = "hypertrace"
 	defCfg["mongo.host"] = "localhost"

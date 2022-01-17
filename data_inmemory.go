@@ -6,14 +6,14 @@ import (
 )
 
 var (
-	inMemoryLog         = logrus.WithField("DB", "InMemory")
+	inMemoryLog = logrus.WithField("DB", "InMemory")
 )
 
 func NewInMemoryTracing() ITracing {
 	tracing := &InMemoryTracing{
-		Users:           make(map[string]*User),
-		Officers: make(map[string]*Officer),
-		TraceDatas: make([]*TraceData,0),
+		Users:      make(map[string]*User),
+		Officers:   make(map[string]*Officer),
+		TraceDatas: make([]*TraceData, 0),
 	}
 	_ = tracing.RegisterNewOfficer(context.Background(), "officer1", "secret1")
 	_ = tracing.RegisterNewOfficer(context.Background(), "officer2", "secret2")
@@ -24,20 +24,23 @@ func NewInMemoryTracing() ITracing {
 }
 
 type InMemoryTracing struct {
-	Users map[string]*User
-	Officers map[string]*Officer
+	Users      map[string]*User
+	Officers   map[string]*Officer
 	TraceDatas []*TraceData
 }
 
 func (trace *InMemoryTracing) RegisterNewUser(ctx context.Context, UID, PIN string) (err error) {
 	inMemoryLog.Tracef("RegisterNewUser UID:%s", UID)
+	if len(UID) == 0 || len(PIN) == 0 {
+		return ErrInvalidParameter
+	}
 	trace.Users[UID] = &User{
 		UID: UID,
 		PIN: PIN,
 	}
 	return nil
 }
-func (trace *InMemoryTracing) GetHandshakePIN(ctx context.Context, UID string) (PIN string, err error){
+func (trace *InMemoryTracing) GetHandshakePIN(ctx context.Context, UID string) (PIN string, err error) {
 	inMemoryLog.Tracef("GetHandshakePIN UID:%s", UID)
 	if tu, ok := trace.Users[UID]; ok {
 		return tu.PIN, nil
@@ -45,17 +48,16 @@ func (trace *InMemoryTracing) GetHandshakePIN(ctx context.Context, UID string) (
 	return "", ErrUIDNotFound
 }
 
-
-func (trace *InMemoryTracing) SaveTraceData(ctx context.Context, UID, OID string, data []*TraceData) (err error){
+func (trace *InMemoryTracing) SaveTraceData(ctx context.Context, UID, OID string, data []*TraceData) (err error) {
 	inMemoryLog.Tracef("SaveTraceData UID:%s OID:%s", UID, OID)
-	for _,tdata := range data {
+	for _, tdata := range data {
 		tdata.UID = UID
 		tdata.OID = OID
 	}
-	trace.TraceDatas = append(trace.TraceDatas, data... )
+	trace.TraceDatas = append(trace.TraceDatas, data...)
 	return nil
 }
-func (trace *InMemoryTracing) PurgeOldTraceData(ctx context.Context, oldestTimeStamp int64) (err error){
+func (trace *InMemoryTracing) PurgeOldTraceData(ctx context.Context, oldestTimeStamp int64) (err error) {
 	inMemoryLog.Tracef("PurgeOldTraceData")
 	newTraceData := make([]*TraceData, 0)
 	for _, td := range trace.TraceDatas {
@@ -66,7 +68,7 @@ func (trace *InMemoryTracing) PurgeOldTraceData(ctx context.Context, oldestTimeS
 	trace.TraceDatas = newTraceData
 	return nil
 }
-func (trace *InMemoryTracing) GetTraceData(ctx context.Context, UID string) (traces []*TraceData, err error){
+func (trace *InMemoryTracing) GetTraceData(ctx context.Context, UID string) (traces []*TraceData, err error) {
 	inMemoryLog.Tracef("GetTraceData UID:%s", UID)
 	newTraceData := make([]*TraceData, 0)
 	for _, td := range trace.TraceDatas {
@@ -77,7 +79,7 @@ func (trace *InMemoryTracing) GetTraceData(ctx context.Context, UID string) (tra
 	return newTraceData, nil
 }
 
-func (trace *InMemoryTracing) RegisterNewOfficer(ctx context.Context, OID, secret string) (err error){
+func (trace *InMemoryTracing) RegisterNewOfficer(ctx context.Context, OID, secret string) (err error) {
 	inMemoryLog.Tracef("RegisterNewOfficer OID:%s", OID)
 	trace.Officers[OID] = &Officer{
 		OID:    OID,
@@ -85,7 +87,7 @@ func (trace *InMemoryTracing) RegisterNewOfficer(ctx context.Context, OID, secre
 	}
 	return nil
 }
-func (trace *InMemoryTracing) GetOfficerID(ctx context.Context, secret string) (OID string, err error){
+func (trace *InMemoryTracing) GetOfficerID(ctx context.Context, secret string) (OID string, err error) {
 	inMemoryLog.Tracef("GetOfficerID secret:%s", secret)
 	for oid, off := range trace.Officers {
 		if off.Secret == secret {
@@ -94,7 +96,7 @@ func (trace *InMemoryTracing) GetOfficerID(ctx context.Context, secret string) (
 	}
 	return "", ErrSecretNotValid
 }
-func (trace *InMemoryTracing) DeleteOfficer(ctx context.Context, OID string) (err error){
+func (trace *InMemoryTracing) DeleteOfficer(ctx context.Context, OID string) (err error) {
 	inMemoryLog.Tracef("DeleteOfficer OID:%s", OID)
 	delete(trace.Officers, OID)
 	return nil

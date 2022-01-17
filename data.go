@@ -15,7 +15,8 @@ var (
 	ErrRegisterUIDError = fmt.Errorf("uid registration error")
 	ErrUIDNotFound      = fmt.Errorf("uid not found")
 	ErrTokenNotFound    = fmt.Errorf("token not found")
-	ErrSecretNotValid = fmt.Errorf("secret not valid")
+	ErrSecretNotValid   = fmt.Errorf("secret not valid")
+	ErrInvalidParameter = fmt.Errorf("invalid parameter")
 )
 
 type ITracing interface {
@@ -32,25 +33,25 @@ type ITracing interface {
 }
 
 type User struct {
-	UID string `json:"uid"`
-	PIN string `json:"pin"`
+	UID string `json:"uid" bson:"uid"`
+	PIN string `json:"pin" bson:"pin"`
 }
 
 type Officer struct {
-	OID    string `json:"oid"`
-	Secret string `json:"secret"`
+	OID    string `json:"oid" bson:"oid"`
+	Secret string `json:"secret" bson:"secret"`
 }
 
 type TraceData struct {
-	OID       string `json:"oid,omitempty"`
-	UID       string `json:"uid,omitempty"`
-	CUID      string `json:"cuid"`
-	Timestamp int64  `json:"timestamp"`
-	ModelC    string `json:"modelC"`
-	ModelP    string `json:"modelP"`
-	RSSI      int    `json:"rssi"`
-	TxPower   int    `json:"txPower"`
-	Org       string `json:"org"`
+	OID       string `json:"oid,omitempty" bson:"oid"`
+	UID       string `json:"uid,omitempty" bson:"uid"`
+	CUID      string `json:"cuid" bson:"cuid"`
+	Timestamp int64  `json:"timestamp" bson:"timestamp"`
+	ModelC    string `json:"modelC" bson:"modelC"`
+	ModelP    string `json:"modelP" bson:"modelP"`
+	RSSI      int    `json:"rssi" bson:"rssi"`
+	TxPower   int    `json:"txPower" bson:"txPower"`
+	Org       string `json:"org" bson:"org"`
 }
 
 func NewUploadToken(uid, oid string, validHour int) *UploadToken {
@@ -73,10 +74,10 @@ func NewUploadTokenFromString(token string, key []byte) (*UploadToken, error) {
 }
 
 type UploadToken struct {
-	OID string `json:"oid"`
-	UID string `json:"uid"`
-	ValidFrom int64 `json:"nbf"`
-	ValidUntil int64 `json:"exp"`
+	OID        string `json:"oid" bson:"oid"`
+	UID        string `json:"uid" bson:"uid"`
+	ValidFrom  int64  `json:"nbf" bson:"nbf"`
+	ValidUntil int64  `json:"exp" bson:"exp"`
 }
 
 func (ut *UploadToken) IsValid() bool {
@@ -84,8 +85,8 @@ func (ut *UploadToken) IsValid() bool {
 	return n > ut.ValidFrom && n < ut.ValidUntil
 }
 
-func (ut *UploadToken) ToToken(key []byte) (token string, err error)  {
-	utBytes, err  := json.Marshal(ut)
+func (ut *UploadToken) ToToken(key []byte) (token string, err error) {
+	utBytes, err := json.Marshal(ut)
 	if err != nil {
 		return "", err
 	}
@@ -93,9 +94,9 @@ func (ut *UploadToken) ToToken(key []byte) (token string, err error)  {
 }
 
 type DataUpload struct {
-	UID         string               `json:"uid"`
-	UploadToken string               `json:"uploadToken"`
-	Traces      []*UploadTraceRecord `json:"traces"`
+	UID         string               `json:"uid" bson:"uid"`
+	UploadToken string               `json:"uploadToken" bson:"uploadToken"`
+	Traces      []*UploadTraceRecord `json:"traces" bson:"traces"`
 }
 
 type UploadTraceRecord struct {
@@ -107,8 +108,3 @@ type UploadTraceRecord struct {
 	TxPower   int    `json:"txPower"`
 	Org       string `json:"org"`
 }
-
-
-/**
-MongoDB Implementations
- */
