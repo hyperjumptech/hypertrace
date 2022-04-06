@@ -6,14 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hyperjumptech/hypertrace/static"
-	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hyperjumptech/hypertrace/static"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -480,6 +481,10 @@ func generateTempId(key []byte, uid string, i uint32) (*TempID, error) {
 		StartTime:  start,
 		ExpiryTime: expiry,
 	}, err
+}
+
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func StaticMiddleware(next http.Handler) http.Handler {

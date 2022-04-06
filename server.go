@@ -3,13 +3,14 @@ package hypertrace
 import (
 	"context"
 	"fmt"
-	mux "github.com/hyperjumptech/hyper-mux"
-	serverLog "github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	mux "github.com/hyperjumptech/hyper-mux"
+	serverLog "github.com/sirupsen/logrus"
 )
 
 var (
@@ -32,6 +33,7 @@ func initRoutes() {
 	hmux.AddRoute("/uploadData", mux.MethodPost, uploadData)
 	hmux.AddRoute("/getTracing", mux.MethodGet, getTracing)
 	hmux.AddRoute("/purgeTracing", mux.MethodGet, purgeTracing)
+	hmux.AddRoute("/health", mux.MethodGet, healthCheck)
 }
 
 func StartServer() {

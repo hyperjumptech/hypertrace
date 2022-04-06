@@ -9,12 +9,12 @@ that implements BlueTrace.io specification.
 $ make build
 ```
 
-this will produce an executable called `OTMock.app`
+this will produce an executable called `hypertrace.app`
 
 ## Execute
 
 ```shell
-$ OTMock.app
+$ hypertrace.app
 ```
 
 The server will run on port `8080`
