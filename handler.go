@@ -142,7 +142,7 @@ func registerOfficer(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\"}")))
+	w.Write([]byte("{\"status\":\"SUCCESS\"}"))
 }
 
 func deleteOfficer(w http.ResponseWriter, r *http.Request) {
@@ -170,7 +170,7 @@ func deleteOfficer(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\"}")))
+	w.Write([]byte("{\"status\":\"SUCCESS\"}"))
 }
 
 type TempIDResponse struct {
@@ -214,7 +214,6 @@ func purgeTracing(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("{\"status\":\"SUCCESS\"}"))
-	return
 }
 
 func getTempIDs(w http.ResponseWriter, r *http.Request) {
@@ -277,7 +276,6 @@ func getUploadToken(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\", \"token\":\"%s\"}", tok)))
-	return
 }
 
 func uploadData(w http.ResponseWriter, r *http.Request) {
@@ -421,10 +419,7 @@ type TempID struct {
 
 func (tid *TempID) IsValid(key []byte, forTime time.Time) bool {
 	_, err := decodeAndDecrypt(tid.TempID, key)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 func GetTempIDData(key []byte, tempid string) (UID string, start, expiry int32, err error) {
