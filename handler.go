@@ -479,6 +479,7 @@ func generateTempId(key []byte, uid string, i uint32) (*TempID, error) {
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("cache-control", "no-cache")
 	w.WriteHeader(http.StatusNoContent)
 }
 
