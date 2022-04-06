@@ -182,7 +182,7 @@
             "in": "body",
             "required": true,
             "name": "traceData",
-            "description": "ceredential",
+            "description": "credential",
             "schema": {
               "type": "object",
               "properties": {
@@ -272,7 +272,7 @@
             "required": true,
             "type": "string",
             "name": "secret",
-            "description": "officer ceredential"
+            "description": "officer credential"
           }
         ],
         "responses": {
@@ -334,14 +334,14 @@
             "required": true,
             "type": "number",
             "name": "ageHour",
-            "description": "ceredential"
+            "description": "credential"
           },
           {
             "in": "query",
             "required": true,
             "type": "string",
             "name": "secret",
-            "description": "ceredential"
+            "description": "credential"
           }
         ],
         "responses": {
