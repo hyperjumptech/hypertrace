@@ -21,18 +21,12 @@
       "description": "The endpoint that used by admin to upload, query and purge trace data"
     }
   ],
-  "schemes": [
-    "http","https"
-  ],
+  "schemes": ["http", "https"],
   "paths": {
     "/getHandshakePin": {
       "get": {
-        "tags": [
-          "User API"
-        ],
-        "produces": [
-          "application/json"
-        ],
+        "tags": ["User API"],
+        "produces": ["application/json"],
         "parameters": [
           {
             "in": "query",
@@ -49,11 +43,11 @@
               "type": "object",
               "properties": {
                 "status": {
-                  "type" : "string"
+                  "type": "string"
                 },
                 "pin": {
-                  "type" : "string",
-                  "description" : "The pin to be used to gain access the the blue tooth device running the tracing app"
+                  "type": "string",
+                  "description": "The pin to be used to gain access the the blue tooth device running the tracing app"
                 }
               }
             }
@@ -69,12 +63,8 @@
     },
     "/getTempIDs": {
       "get": {
-        "tags": [
-          "User API"
-        ],
-        "produces": [
-          "application/json"
-        ],
+        "tags": ["User API"],
+        "produces": ["application/json"],
         "parameters": [
           {
             "in": "query",
@@ -91,28 +81,28 @@
               "type": "object",
               "properties": {
                 "status": {
-                  "type" : "string"
+                  "type": "string"
                 },
                 "refreshTime": {
                   "type": "number",
-                  "description" : "Time stamp on which the blue tooth device to obtain another set of tempIDs"
+                  "description": "Time stamp on which the blue tooth device to obtain another set of tempIDs"
                 },
                 "tempIDs": {
-                  "type" : "array",
-                  "items" : {
-                    "type" : "object",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
                     "properties": {
                       "tempID": {
-                        "type" : "string",
-                        "description" : "List of temporary ID to be used by blue tooth defice to be exchanged during contact"
+                        "type": "string",
+                        "description": "List of temporary ID to be used by blue tooth defice to be exchanged during contact"
                       },
                       "startTime": {
-                        "type" : "number",
-                        "description" : "UNIX time stamp on which this temporary ID is valid and used for exchange with other bluetooth device"
+                        "type": "number",
+                        "description": "UNIX time stamp on which this temporary ID is valid and used for exchange with other bluetooth device"
                       },
                       "expiryTime": {
-                        "type" : "number",
-                        "description" : "UNIX timestamp on which this temporary ID become expired and should not be used to exchange data with other bluetooth device"
+                        "type": "number",
+                        "description": "UNIX timestamp on which this temporary ID become expired and should not be used to exchange data with other bluetooth device"
                       }
                     }
                   }
@@ -129,14 +119,16 @@
         }
       }
     },
-    "/registerUid":{
+    "/health": {
       "get": {
-        "tags": [
-          "Officer API"
-        ],
-        "produces": [
-          "application/json"
-        ],
+        "tags": ["User API"],
+        "responses": { "204": { "description": "No Content" } }
+      }
+    },
+    "/registerUid": {
+      "get": {
+        "tags": ["Officer API"],
+        "produces": ["application/json"],
         "parameters": [
           {
             "in": "query",
@@ -144,13 +136,15 @@
             "type": "string",
             "name": "secret",
             "description": "Officer credential"
-          },{
+          },
+          {
             "in": "query",
             "required": true,
             "type": "string",
             "name": "uid",
             "description": "User Identification Number, a 21 digit string that can be used to identify the actual user. It should not contains personal information such as name, phone number, email, etc"
-          },{
+          },
+          {
             "in": "query",
             "required": true,
             "type": "string",
@@ -181,18 +175,14 @@
     },
     "/uploadData": {
       "post": {
-        "tags": [
-          "Officer API"
-        ],
-        "produces": [
-          "application/json"
-        ],
+        "tags": ["Officer API"],
+        "produces": ["application/json"],
         "parameters": [
           {
             "in": "body",
             "required": true,
             "name": "traceData",
-            "description": "ceredential",
+            "description": "credential",
             "schema": {
               "type": "object",
               "properties": {
@@ -202,40 +192,40 @@
                 },
                 "uploadToken": {
                   "type": "string",
-                  "description" : "Securit token used to authorize this upload. The token can be obtained using getUploadToken endpoint using officials secret"
+                  "description": "Securit token used to authorize this upload. The token can be obtained using getUploadToken endpoint using officials secret"
                 },
                 "traces": {
-                  "description" : "The trace data to be uploaded",
+                  "description": "The trace data to be uploaded",
                   "type": "array",
                   "items": {
                     "properties": {
                       "timestamp": {
                         "type": "number",
-                        "description" : "Contact time stamp"
+                        "description": "Contact time stamp"
                       },
                       "msg": {
                         "type": "string",
-                        "description" : "Received TempID"
+                        "description": "Received TempID"
                       },
                       "modelC": {
                         "type": "string",
-                        "description" : "Device model name of the Central side"
+                        "description": "Device model name of the Central side"
                       },
                       "modelP": {
                         "type": "string",
-                        "description" : "Device model name of the Peripheral side"
+                        "description": "Device model name of the Peripheral side"
                       },
                       "rssi": {
                         "type": "number",
-                        "description" : "Bluetooth signal strength"
+                        "description": "Bluetooth signal strength"
                       },
                       "txPower": {
                         "type": "number",
-                        "description" : "Bluetooth transfer power"
+                        "description": "Bluetooth transfer power"
                       },
                       "org": {
                         "type": "string",
-                        "description" : "Organization of the counterpart device"
+                        "description": "Organization of the counterpart device"
                       }
                     }
                   }
@@ -267,12 +257,8 @@
     },
     "/getTracing": {
       "get": {
-        "tags": [
-          "Officer API"
-        ],
-        "produces": [
-          "application/json"
-        ],
+        "tags": ["Officer API"],
+        "produces": ["application/json"],
         "parameters": [
           {
             "in": "query",
@@ -286,7 +272,7 @@
             "required": true,
             "type": "string",
             "name": "secret",
-            "description": "officer ceredential"
+            "description": "officer credential"
           }
         ],
         "responses": {
@@ -340,26 +326,22 @@
     },
     "/purgeTracing": {
       "get": {
-        "tags": [
-          "Officer API"
-        ],
-        "produces": [
-          "application/json"
-        ],
+        "tags": ["Officer API"],
+        "produces": ["application/json"],
         "parameters": [
           {
             "in": "query",
             "required": true,
             "type": "number",
             "name": "ageHour",
-            "description": "ceredential"
+            "description": "credential"
           },
           {
             "in": "query",
             "required": true,
             "type": "string",
             "name": "secret",
-            "description": "ceredential"
+            "description": "credential"
           }
         ],
         "responses": {
@@ -369,7 +351,7 @@
               "type": "object",
               "properties": {
                 "status": {
-                  "type" : "string"
+                  "type": "string"
                 }
               }
             }
@@ -380,18 +362,13 @@
           "404": {
             "description": "token not found not found"
           }
-
         }
       }
     },
     "/getUploadToken": {
       "get": {
-        "tags": [
-          "Officer API"
-        ],
-        "produces": [
-          "application/json"
-        ],
+        "tags": ["Officer API"],
+        "produces": ["application/json"],
         "parameters": [
           {
             "in": "query",
@@ -415,10 +392,10 @@
               "type": "object",
               "properties": {
                 "status": {
-                  "type" : "string"
+                  "type": "string"
                 },
                 "token": {
-                  "type" : "string"
+                  "type": "string"
                 }
               }
             }
@@ -434,12 +411,8 @@
     },
     "/registerOid": {
       "get": {
-        "tags": [
-          "Admin API"
-        ],
-        "produces": [
-          "application/json"
-        ],
+        "tags": ["Admin API"],
+        "produces": ["application/json"],
         "parameters": [
           {
             "in": "query",
@@ -470,7 +443,7 @@
               "type": "object",
               "properties": {
                 "status": {
-                  "type" : "string"
+                  "type": "string"
                 }
               }
             }
@@ -486,12 +459,8 @@
     },
     "/deleteOid": {
       "get": {
-        "tags": [
-          "Admin API"
-        ],
-        "produces": [
-          "application/json"
-        ],
+        "tags": ["Admin API"],
+        "produces": ["application/json"],
         "parameters": [
           {
             "in": "query",
@@ -515,7 +484,7 @@
               "type": "object",
               "properties": {
                 "status": {
-                  "type" : "string"
+                  "type": "string"
                 }
               }
             }

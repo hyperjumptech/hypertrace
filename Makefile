@@ -1,5 +1,4 @@
 GOPATH=$(shell go env GOPATH)
-EXEC_NAME=HTrace
 CURRENT_PATH=$(shell pwd)
 GO111MODULE=on
 IMAGE_REGISTRY=dockerhub
@@ -13,7 +12,7 @@ clean:
 	rm -f $(IMAGE_NAME).app
 
 build: clean
-	GO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o $(EXEC_NAME).app cmd/*.go
+	GO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o $(IMAGE_NAME).app cmd/*.go
 
 docker-build: build
 	docker build -t $(IMAGE_NAMESPACE)/$(IMAGE_NAME):$(COMMIT_ID) -f ./.docker/Dockerfile .

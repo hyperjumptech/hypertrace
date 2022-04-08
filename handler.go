@@ -6,14 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hyperjumptech/hypertrace/static"
-	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hyperjumptech/hypertrace/static"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -141,7 +142,7 @@ func registerOfficer(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\"}")))
+	w.Write([]byte("{\"status\":\"SUCCESS\"}"))
 }
 
 func deleteOfficer(w http.ResponseWriter, r *http.Request) {
@@ -169,7 +170,7 @@ func deleteOfficer(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\"}")))
+	w.Write([]byte("{\"status\":\"SUCCESS\"}"))
 }
 
 type TempIDResponse struct {
@@ -213,7 +214,6 @@ func purgeTracing(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("{\"status\":\"SUCCESS\"}"))
-	return
 }
 
 func getTempIDs(w http.ResponseWriter, r *http.Request) {
@@ -276,7 +276,6 @@ func getUploadToken(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("{\"status\":\"SUCCESS\", \"token\":\"%s\"}", tok)))
-	return
 }
 
 func uploadData(w http.ResponseWriter, r *http.Request) {
@@ -420,10 +419,7 @@ type TempID struct {
 
 func (tid *TempID) IsValid(key []byte, forTime time.Time) bool {
 	_, err := decodeAndDecrypt(tid.TempID, key)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 func GetTempIDData(key []byte, tempid string) (UID string, start, expiry int32, err error) {
@@ -480,6 +476,11 @@ func generateTempId(key []byte, uid string, i uint32) (*TempID, error) {
 		StartTime:  start,
 		ExpiryTime: expiry,
 	}, err
+}
+
+func healthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("cache-control", "no-cache")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func StaticMiddleware(next http.Handler) http.Handler {
